@@ -1,15 +1,14 @@
 -- Global variables for luakit
 globals = {
-    homepage = "https://encrypted.google.com/",
- -- homepage            = "http://luakit.org/",
+    homepage            = "http://luakit.org/",
  -- homepage            = "http://github.com/mason-larobina/luakit",
     scroll_step         = 40,
     zoom_step           = 0.1,
     max_cmd_history     = 100,
     max_srch_history    = 100,
  -- proxy must now be set through proxy command; environment variable is broken
- -- default_window_size = "800x600",
-    term = "urxvtc",
+    default_window_size = "800x600",
+    term = "x-terminal-emulator",
 
  -- Disables loading of hostnames from /etc/hosts (for large host files)
  -- load_etc_hosts      = false,
@@ -18,21 +17,12 @@ globals = {
 }
 
 -- Make useragent
-local arch = string.match(({luakit.spawn_sync("uname -sm")})[2], "([^\n]*)")
-local lkv = string.format("luakit/%s", luakit.version)
-local wkv = string.format("WebKitGTK+/%d.%d.%d", luakit.webkit_major_version, luakit.webkit_minor_version, luakit.webkit_micro_version)
-local awkv = string.format("AppleWebKit/%s.%s+", luakit.webkit_user_agent_major_version, luakit.webkit_user_agent_minor_version)
-globals.useragent = string.format("Mozilla/5.0 (%s) %s %s %s", arch, awkv, wkv, lkv)
-
--- list of predefined user-agents
-globals.available_useragents = {
-    default = globals.useragent,
-    chrome = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.1 (KHTML, like Gecko) Chrome/42.0.000.00 Safari/535.1",
-    firefox = "Mozilla/5.0 (X11; Linux i686 on x86_64; rv:42) Gecko/20110524 Firefox/42.0",
-    ie = "Mozilla/5.0 (compatible; MSIE 42.0; Windows NT 6.1; WOW64; Trident/6.0)",
-}
-
-globals.useragent = globals.available_useragents.chrome
+local _, arch = luakit.spawn_sync("uname -sm")
+-- Only use the luakit version if in date format (reduces identifiability)
+local lkv = string.match(luakit.version, "^(%d+.%d+.%d+)")
+globals.useragent = string.format("Mozilla/5.0 (%s) AppleWebKit/%s+ (KHTML, like Gecko) WebKitGTK+/%s luakit%s",
+    string.sub(arch, 1, -2), luakit.webkit_user_agent_version,
+    luakit.webkit_version, (lkv and ("/" .. lkv)) or "")
 
 -- Search common locations for a ca file which is used for ssl connection validation.
 local ca_files = {
@@ -44,17 +34,17 @@ local ca_files = {
 -- Use the first ca-file found
 for _, ca_file in ipairs(ca_files) do
     if os.exists(ca_file) then
-        soup.set_property("ssl-ca-file", ca_file)
+        soup.ssl_ca_file = ca_file
         break
     end
 end
 
 -- Change to stop navigation sites with invalid or expired ssl certificates
-soup.set_property("ssl-strict", false)
+soup.ssl_strict = false
 
 -- Set cookie acceptance policy
 cookie_policy = { always = 0, never = 1, no_third_party = 2 }
-soup.set_property("accept-policy", cookie_policy.always)
+soup.accept_policy = cookie_policy.always
 
 -- List of search engines. Each item must contain a single %s which is
 -- replaced by URI encoded search terms. All other occurances of the percent
@@ -62,43 +52,37 @@ soup.set_property("accept-policy", cookie_policy.always)
 -- it to avoid collisions with lua's string.format characters.
 -- See: http://www.lua.org/manual/5.1/manual.html#pdf-string.format
 search_engines = {
-    g = "https://encrypted.google.com/search?hl=en&q=%s",
-    s = "http://scholar.google.de/scholar?q=%s",
-    go = "http://www.google.com/search?q=%s",
-    so = "http://stackoverflow.com/search?q=%s",
-    wa = "http://www.wolframalpha.com/input/?i=%s",
-    wen = "http://en.wikipedia.org/w/index.php?title=Special:Search&search=%s",
-    yt = "http://www.youtube.com/results?search_query=%s",
     luakit      = "http://luakit.org/search/index/luakit?q=%s",
     google      = "http://google.com/search?q=%s",
-    duckduckgo  = "http://duckduckgo.com/?q=%s",
+    duckduckgo  = "http://duckduckgo.com/?q=%s&t=debian",
     wikipedia   = "http://en.wikipedia.org/wiki/Special:Search?search=%s",
     debbugs     = "http://bugs.debian.org/%s",
     imdb        = "http://imdb.com/find?s=all&q=%s",
     sourceforge = "http://sf.net/search/?words=%s",
+    netflix     = "http://dvd.netflix.com/Search?v1=%s",
 }
 
 -- Set google as fallback search engine
-search_engines.default = search_engines.google
+search_engines.default = search_engines.duckduckgo
 -- Use this instead to disable auto-searching
 --search_engines.default = "%s"
 
 -- Per-domain webview properties
--- See http://webkitgtk.org/reference/webkitgtk-WebKitWebSettings.html
+-- See http://webkitgtk.org/reference/WebKitWebSettings.html
 domain_props = { --[[
     ["all"] = {
-        ["enable-scripts"]          = false,
-        ["enable-plugins"]          = false,
-        ["enable-private-browsing"] = false,
-        ["user-stylesheet-uri"]     = "",
+        enable_scripts          = false,
+        enable_plugins          = false,
+        enable_private_browsing = false,
+        user_stylesheet_uri     = "",
     },
     ["youtube.com"] = {
-        ["enable-scripts"] = true,
-        ["enable-plugins"] = true,
+        enable_scripts = true,
+        enable_plugins = true,
     },
     ["bbs.archlinux.org"] = {
-        ["user-stylesheet-uri"]     = "file://" .. luakit.data_dir .. "/styles/dark.css",
-        ["enable-private-browsing"] = true,
+        user_stylesheet_uri     = "file://" .. luakit.data_dir .. "/styles/dark.css",
+        enable_private_browsing = true,
     }, ]]
 }
 
